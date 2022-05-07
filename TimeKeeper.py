@@ -1,18 +1,22 @@
 from cmath import log
 from http import client
+from tkinter import W
 from discord_slash import SlashCommand, SlashContext
 from discord.ext import commands
 from discord_slash.utils.manage_commands import create_choice, create_option
 import pygsheets
-from datetime import datetime
+from datetime import datetime, timedelta
 
 SHEET_KEY = "1Inz2N5Oy5wxoBK0NI173qfPeQwAU2OtcORR5lf67uOg"
 DISCORD_BOT_KEY = "OTY0ODEwNDEzNTk2MzY0ODIw.YlqDtw.GF9RXBe7BbGeIB523GiSBbOPTm8"
 ANNOUNCEMENTS_ID = 964809316370620416
 DISCORD_SERVER_ID = [964747347802345493]
+WEEK_DAY = ["thứ hai", "thứ ba", "thứ tư",
+            "thứ năm", "thứ sáu", "thứ bảy", "chủ nhật"]
 
 # authorization sheet
 gc = pygsheets.authorize(service_file='CredentialTimeKeeperKey.json')
+sh = gc.open_by_key(SHEET_KEY)
 
 client = commands.Bot(command_prefix='!')
 
@@ -24,12 +28,6 @@ slash = SlashCommand(client, sync_commands=True)
     description="Xin nghỉ phép",
     guild_ids=DISCORD_SERVER_ID,
     options=[
-        create_option(
-            name="date",
-            description="Ngày nghỉ",
-            required=True,
-            option_type=3,
-        ),
         create_option(
             name="part_of_day",
             description="Chọn buổi nghỉ",
@@ -51,6 +49,13 @@ slash = SlashCommand(client, sync_commands=True)
             ]
         ),
         create_option(
+            name="date",
+            description="Ngày nghỉ",
+            required=True,
+            option_type=3,
+        ),
+
+        create_option(
             name="reason",
             description="Lý do nghỉ",
             option_type=3,
@@ -58,7 +63,7 @@ slash = SlashCommand(client, sync_commands=True)
         )
     ]
 )
-async def xin_nghi(ctx: SlashContext, date: str, part_of_day: str, reason: str):
+async def xin_nghi(ctx: SlashContext, part_of_day: str, date: str, reason: str):
     if(ctx.channel.id != ANNOUNCEMENTS_ID):
         await ctx.send("Sang channel announcements để xin nghỉ")
         return
@@ -74,11 +79,16 @@ async def xin_nghi(ctx: SlashContext, date: str, part_of_day: str, reason: str):
         return
 
     if((current_date - input_date).days > 0):
-        await ctx.send("Lỗi ngày nghỉ không hợp lệ")
+        await ctx.send("Lỗi! Xin nghỉ ngày trong quá khứ mất tiêu")
+        return
+
+    if(input_date.weekday() == 6):
+        await ctx.send("Xin nghỉ vào chủ nhật ư vip!!!")
         return
 
     try:
-        sh = gc.open_by_key(SHEET_KEY)
+        await ctx.send("{} Xin nghỉ {} {} ngày: {} với lý do: {}".format(ctx.author.name, part_of_day, WEEK_DAY[input_date.weekday()], date, reason))
+
         wks = sh.worksheet_by_title(
             "{}/{}".format(input_date.month, input_date.year))
         row = wks.find("{}".format(ctx.author.id))[0].row
@@ -90,7 +100,7 @@ async def xin_nghi(ctx: SlashContext, date: str, part_of_day: str, reason: str):
         if (part_of_day == 'sáng' or part_of_day == 'chiều'):
             value += "1/2"
         wks.update_value((row, col), value)
-        await ctx.send("{} Xin nghỉ {} ngày: {} với lý do: {}".format(ctx.author.name, part_of_day, date, reason))
+
     except Exception as ex:
         print(ex)
         await ctx.send("Lỗi rồi xin nghỉ lại đi!!!!")
@@ -194,29 +204,75 @@ async def xin_nghi_nhieu_ngay(ctx: SlashContext, from_part_of_day: str, from_dat
         return
 
     try:
-        await ctx.send("{} Xin nghỉ từ {} ngày: {} tới {} ngày: {} với lý do: {}".format(ctx.author.name, from_part_of_day, from_date.strftime('%d/%m'), to_part_of_day, to_date.strftime('%d/%m'), reason))
-        sh = gc.open_by_key(SHEET_KEY)
-        wks = sh.worksheet_by_title(
-            "{}/{}".format(from_date.month, from_date.year))
-        row = wks.find("{}".format(ctx.author.id))[0].row
-        col = wks.find("{}/{}/{}".format(from_date.month,
-                       from_date.day, from_date.year))[0].col
-        value = "nghỉ"
-        if(from_part_of_day == "chiều"):
-            value += " 1/2"
-        wks.update_value((row, col), value)
-        count_day = (to_date - from_date).days
-        if(count_day > 1):
-            for i in range(1, count_day):
-                col += 1
-                value = "nghỉ"
-                wks.update_value((row, col), value)
-        col += 1
-        value = "nghỉ"
-        if(to_part_of_day == "sáng"):
-            value += " 1/2"
-        wks.update_value((row, col), value)
-
+        await ctx.send("{} Xin nghỉ từ {} {} ngày: {} tới {} {} ngày: {} với lý do: {}".format(ctx.author.name, from_part_of_day, WEEK_DAY[from_date.weekday()], from_date.strftime('%d/%m'), to_part_of_day, WEEK_DAY[to_date.weekday()], to_date.strftime('%d/%m'), reason))
+        if(from_date.month == to_date.month):
+            on_leave_in_month(ctx, from_part_of_day,
+                              from_date, to_part_of_day, to_date)
+        else:
+            on_leave_multi_month(ctx, from_part_of_day,
+                                 from_date, to_part_of_day, to_date)
     except ValueError:
         await ctx.send("Lỗi rồi! Hãy xin nghỉ lại")
+
+
+def on_leave_in_month(ctx, from_part_of_day, from_date, to_part_of_day, to_date):
+    wks = sh.worksheet_by_title(
+        "{}/{}".format(from_date.month, from_date.year))
+    row = wks.find("{}".format(ctx.author.id))[0].row
+    col = wks.find("{}/{}/{}".format(from_date.month,
+                                     from_date.day, from_date.year))[0].col
+    value = "nghỉ"
+    if(from_part_of_day == "chiều"):
+        value += " 1/2"
+    wks.update_value((row, col), value)
+    count_day = (to_date - from_date).days
+    if(count_day > 1):
+        for i in range(1, count_day):
+            check_date = from_date + timedelta(days=i)
+            if(check_date.weekday() == 6):
+                continue
+            col += 1
+            value = "nghỉ"
+            wks.update_value((row, col), value)
+    col += 1
+    value = "nghỉ"
+    if(to_part_of_day == "sáng"):
+        value += " 1/2"
+    wks.update_value((row, col), value)
+
+
+def on_leave_multi_month(ctx, from_part_of_day, from_date, to_part_of_day, to_date):
+    wks = sh.worksheet_by_title(
+        "{}/{}".format(from_date.month, from_date.year))
+    row = wks.find("{}".format(ctx.author.id))[0].row
+    col = wks.find("{}/{}/{}".format(from_date.month,
+                                     from_date.day, from_date.year))[0].col
+    value = "nghỉ"
+    if(from_part_of_day == "chiều"):
+        value += " 1/2"
+    wks.update_value((row, col), value)
+    count_day = (to_date - from_date).days
+    if(count_day > 1):
+        for i in range(1, count_day):
+            check_date = from_date + timedelta(days=i)
+            if(check_date.weekday() == 6):
+                continue
+            wks = sh.worksheet_by_title(
+                "{}/{}".format(check_date.month, check_date.year))
+            row = wks.find("{}".format(ctx.author.id))[0].row
+            col = wks.find(
+                "{}/{}/{}".format(check_date.month, check_date.day, check_date.year))[0].col
+            value = "nghỉ"
+            wks.update_value((row, col), value)
+    wks = sh.worksheet_by_title(
+        "{}/{}".format(to_date.month, to_date.year))
+    row = wks.find("{}".format(ctx.author.id))[0].row
+    col = wks.find("{}/{}/{}".format(to_date.month,
+                                     to_date.day, to_date.year))[0].col
+    value = "nghỉ"
+    if(to_part_of_day == "sáng"):
+        value += " 1/2"
+    wks.update_value((row, col), value)
+
+
 client.run(DISCORD_BOT_KEY)
