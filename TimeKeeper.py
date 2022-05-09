@@ -4,9 +4,10 @@ from discord.ext import commands
 from discord_slash.utils.manage_commands import create_choice, create_option
 import pygsheets
 from datetime import datetime, timedelta
+import json
 
 SHEET_KEY = "1Inz2N5Oy5wxoBK0NI173qfPeQwAU2OtcORR5lf67uOg"
-DISCORD_BOT_KEY = "OTY0ODEwNDEzNTk2MzY0ODIw.YlqDtw.GF9RXBe7BbGeIB523GiSBbOPTm8"
+DISCORD_BOT_KEY = "OTY0ODEwNDEzNTk2MzY0ODIw.YlqDtw.2Bi5kCkksFno5fY9vfMXdtIgFyg"
 ANNOUNCEMENTS_ID = 964809316370620416
 DISCORD_SERVER_ID = [964747347802345493]
 WEEK_DAY = ["thứ hai", "thứ ba", "thứ tư",
@@ -211,6 +212,46 @@ async def xin_nghi_nhieu_ngay(ctx: SlashContext, from_part_of_day: str, from_dat
                                  from_date, to_part_of_day, to_date)
     except ValueError:
         await ctx.send("Lỗi rồi! Hãy xin nghỉ lại")
+
+
+@slash.slash(
+    name="list_ngay_nghi",
+    description="Xem ngày đã nghỉ",
+    guild_ids=DISCORD_SERVER_ID,
+    options=[
+        create_option(
+            name="month",
+            description="ngày nghỉ trong tháng",
+            option_type=3,
+            required=True,
+        )
+    ]
+
+)
+async def list_ngay_da_nghi(ctx: SlashContext, month: str):
+    await ctx.send("{} đã xem số buổi nghỉ trong tháng {}".format(ctx.author.name, month))
+    wks = sh.worksheet_by_title(
+        "{}/{}".format(month, datetime.now().year))
+    first_day_of_month = datetime.now()
+    print(first_day_of_month)
+    first_day_of_month = first_day_of_month.replace(
+        year=datetime.now().year, month=int(month), day=1)
+    current_date = first_day_of_month
+    row = wks.find("{}".format(ctx.author.id))[0].row
+    data = wks.get_row(row)
+    data = data[3:]
+    i = 0
+    count = 0
+    res = "Tháng {} {} đã nghỉ những ngày: \n".format(month, ctx.author.name)
+    for item in data:
+        if(item != ""):
+            count += 1
+            res += "{} : {} \n".format(current_date.strftime('%d/%m'), item)
+        i += 1
+        current_date = first_day_of_month + timedelta(i)
+    if(count == 0):
+        res = "Tháng {} {} không nghỉ ngày nào".format(month, ctx.author.name)
+    await ctx.author.send(res)
 
 
 def on_leave_in_month(ctx, from_part_of_day, from_date, to_part_of_day, to_date):
