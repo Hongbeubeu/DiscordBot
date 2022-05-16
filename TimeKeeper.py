@@ -1,4 +1,5 @@
 from http import client
+from pydoc import cli
 from discord_slash import SlashCommand, SlashContext
 from discord.ext import commands
 from discord_slash.utils.manage_commands import create_choice, create_option
@@ -226,7 +227,6 @@ async def xin_nghi_nhieu_ngay(ctx: SlashContext, from_part_of_day: str, from_dat
             required=True,
         )
     ]
-
 )
 async def list_ngay_da_nghi(ctx: SlashContext, month: str):
     await ctx.send("{} đã xem số buổi nghỉ trong tháng {}".format(ctx.author.name, month))
@@ -252,6 +252,64 @@ async def list_ngay_da_nghi(ctx: SlashContext, month: str):
     if(count == 0):
         res = "Tháng {} {} không nghỉ ngày nào".format(month, ctx.author.name)
     await ctx.author.send(res)
+
+
+@slash.slash(
+    name="xoa_ngay_nghi_admin",
+    description="Chỉnh sửa ngày nghỉ dành cho admin",
+    guild_ids=DISCORD_SERVER_ID,
+    options=[
+        create_option(
+            name="user_id",
+            description="chỉnh sửa ngày nghỉ của user",
+            option_type=9,
+            required=True,
+        ),
+        create_option(
+            name="date",
+            description="ngày/tháng",
+            option_type=3,
+            required=True,
+        )
+    ]
+)
+async def xoa_ngay_nghi_admin(ctx: SlashContext, user_id, date):
+    if(ctx.channel.id != ANNOUNCEMENTS_ID):
+        await ctx.send("Sang channel announcements để xin nghỉ")
+        return
+    if(is_admin(ctx) == False):
+        await ctx.send("Admin mới dùng được tính năng này thoai!!!!")
+        return
+    current_date = datetime.now()
+    current_year = current_date.year
+
+    try:
+        input_date = datetime.strptime(date, '%d/%m')
+        if(current_date.month == 12 and input_date.month == 1):
+            current_year += 1
+        input_date = input_date.replace(year=current_year)
+    except ValueError:
+        await ctx.send("Lỗi nhập ngày tháng")
+
+    wks = sh.worksheet_by_title(
+        "{}/{}".format(input_date.month, current_year))
+    row = wks.find("{}".format(ctx.author.id))[0].row
+    col = wks.find("{}/{}/{}".format(input_date.month,
+                                     input_date.day, input_date.year))[0].col
+
+    try:
+        user = await client.fetch_user(user_id)
+        await ctx.send("admin {} đã xóa ngày nghỉ của user {} vào ngày {}".format(ctx.author.name, user.name, input_date.strftime('%d/%m')))
+        wks.update_value((row, col), "")
+    except ValueError:
+        await ctx.send("Lỗi! Hãy thử lại")
+
+
+def is_admin(ctx):
+    for item in ctx.author.roles:
+        if("admin" in item.name):
+            return True
+    return False
 
 
 def on_leave_in_month(ctx, from_part_of_day, from_date, to_part_of_day, to_date):
