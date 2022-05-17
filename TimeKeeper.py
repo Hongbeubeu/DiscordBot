@@ -255,6 +255,55 @@ async def list_ngay_da_nghi(ctx: SlashContext, month: str):
 
 
 @slash.slash(
+    name="list_ngay_nghi_admin",
+    description="Xem ngày đã nghỉ dành cho admin",
+    guild_ids=DISCORD_SERVER_ID,
+    options=[
+        create_option(
+            name="user_id",
+            description="xem ngày đã nghỉ của user",
+            option_type=9,
+            required=True
+        ),
+        create_option(
+            name="month",
+            description="ngày nghỉ trong tháng",
+            option_type=3,
+            required=True
+        )
+    ]
+)
+async def list_ngay_nghi_admin(ctx: SlashContext, user_id, month: str):
+    try:
+        user = await client.fetch_user(user_id)
+    except ValueError:
+        await ctx.send("Lỗi không tìm thấy user!")
+        return
+    await ctx.send("admin: {} đã xem số buổi nghỉ trong tháng {} của user: {}".format(ctx.author.name, month, user.name))
+    wks = sh.worksheet_by_title(
+        "{}/{}".format(month, datetime.now().year))
+    first_day_of_month = datetime.now()
+    first_day_of_month = first_day_of_month.replace(
+        year=datetime.now().year, month=int(month), day=1)
+    current_date = first_day_of_month
+    row = wks.find("{}".format(user_id))[0].row
+    data = wks.get_row(row)
+    data = data[3:]
+    i = 0
+    count = 0
+    res = "Tháng {} {} đã nghỉ những ngày: \n".format(month, user.name)
+    for item in data:
+        if(item != ""):
+            count += 1
+            res += "{} : {} \n".format(current_date.strftime('%d/%m'), item)
+        i += 1
+        current_date = first_day_of_month + timedelta(i)
+    if(count == 0):
+        res = "Tháng {} {} không nghỉ ngày nào".format(month, user.name)
+    await ctx.send(res)
+
+
+@slash.slash(
     name="xoa_ngay_nghi_admin",
     description="Chỉnh sửa ngày nghỉ dành cho admin",
     guild_ids=DISCORD_SERVER_ID,
@@ -290,6 +339,54 @@ async def xoa_ngay_nghi_admin(ctx: SlashContext, user_id, date):
         input_date = input_date.replace(year=current_year)
     except ValueError:
         await ctx.send("Lỗi nhập ngày tháng")
+        return
+
+    wks = sh.worksheet_by_title(
+        "{}/{}".format(input_date.month, current_year))
+    row = wks.find("{}".format(user_id))[0].row
+    col = wks.find("{}/{}/{}".format(input_date.month,
+                                     input_date.day, input_date.year))[0].col
+
+    try:
+        user = await client.fetch_user(user_id)
+        await ctx.send("admin {} đã xóa ngày nghỉ của user {} vào ngày {}".format(ctx.author.name, user.name, input_date.strftime('%d/%m')))
+        wks.update_value((row, col), "")
+    except ValueError:
+        await ctx.send("Lỗi! Hãy thử lại")
+
+
+@slash.slash(
+    name="xoa_ngay_nghi",
+    description="Chỉnh sửa ngày nghỉ dành cho user",
+    guild_ids=DISCORD_SERVER_ID,
+    options=[
+        create_option(
+            name="date",
+            description="ngày/tháng",
+            option_type=3,
+            required=True,
+        )
+    ]
+)
+async def xoa_ngay_nghi(ctx: SlashContext, date):
+    if(ctx.channel.id != ANNOUNCEMENTS_ID):
+        await ctx.send("Sang channel announcements để xin nghỉ")
+        return
+    current_date = datetime.now()
+    current_year = current_date.year
+
+    try:
+        input_date = datetime.strptime(date, '%d/%m')
+        if(current_date.month == 12 and input_date.month == 1):
+            current_year += 1
+        input_date = input_date.replace(year=current_year)
+    except ValueError:
+        await ctx.send("Lỗi nhập ngày tháng")
+        return
+
+    if((current_date - input_date).days > 2):
+        await ctx.send("User không được sửa ngày đã xin phép quá 2 ngày, liên hệ admin để xóa!")
+        return
 
     wks = sh.worksheet_by_title(
         "{}/{}".format(input_date.month, current_year))
@@ -297,9 +394,12 @@ async def xoa_ngay_nghi_admin(ctx: SlashContext, user_id, date):
     col = wks.find("{}/{}/{}".format(input_date.month,
                                      input_date.day, input_date.year))[0].col
 
+    if(wks.get_value((row, col)) == ""):
+        await ctx.send("{} chưa xin nghỉ vào ngày {}".format(ctx.author.name, input_date.strftime('%d/%m')))
+        return
+
     try:
-        user = await client.fetch_user(user_id)
-        await ctx.send("admin {} đã xóa ngày nghỉ của user {} vào ngày {}".format(ctx.author.name, user.name, input_date.strftime('%d/%m')))
+        await ctx.send("user {} đã xóa ngày nghỉ vào ngày {}".format(ctx.author.name, input_date.strftime('%d/%m')))
         wks.update_value((row, col), "")
     except ValueError:
         await ctx.send("Lỗi! Hãy thử lại")
