@@ -1,11 +1,9 @@
 from http import client
-from pydoc import cli
 from discord_slash import SlashCommand, SlashContext
 from discord.ext import commands
 from discord_slash.utils.manage_commands import create_choice, create_option
 import pygsheets
 from datetime import datetime, timedelta
-import json
 
 SHEET_KEY = "1Inz2N5Oy5wxoBK0NI173qfPeQwAU2OtcORR5lf67uOg"
 DISCORD_BOT_KEY = "OTY0ODEwNDEzNTk2MzY0ODIw.YlqDtw.2Bi5kCkksFno5fY9vfMXdtIgFyg"
@@ -50,7 +48,7 @@ slash = SlashCommand(client, sync_commands=True)
         ),
         create_option(
             name="date",
-            description="Ngày nghỉ",
+            description="Ngày nghỉ dd/mm",
             required=True,
             option_type=3,
         ),
@@ -131,7 +129,7 @@ async def xin_nghi(ctx: SlashContext, part_of_day: str, date: str, reason: str):
 
         create_option(
             name="from_date",
-            description="ngày",
+            description="ngày dd/mm",
             option_type=3,
             required=True,
         ),
@@ -155,7 +153,7 @@ async def xin_nghi(ctx: SlashContext, part_of_day: str, date: str, reason: str):
 
         create_option(
             name="to_date",
-            description="ngày",
+            description="ngày (dd/mm)",
             option_type=3,
             required=True
         ),
@@ -193,14 +191,13 @@ async def xin_nghi_nhieu_ngay(ctx: SlashContext, from_part_of_day: str, from_dat
         else:
             from_date = datetime.strptime(from_date, "%d/%m/%y")
             to_date = datetime.strptime(to_date, "%d/%m/%y")
-        print("{}->{}".format(from_date, to_date))
 
     except ValueError:
         await ctx.send("Lỗi fomat ngày hoặc ngày trong quá khứ")
         return
 
     if((current_date - from_date).days > 0 or (current_date - to_date).days > 0 or (from_date - to_date).days >= 0):
-        await ctx.send("Lỗi nhập sai ngày bắt đầu hoặc kết thúc {}".format(ctx.author.id))
+        await ctx.send("Lỗi nhập sai ngày bắt đầu hoặc kết thúc")
         return
 
     try:
@@ -216,7 +213,7 @@ async def xin_nghi_nhieu_ngay(ctx: SlashContext, from_part_of_day: str, from_dat
 
 
 @slash.slash(
-    name="list_ngay_nghi",
+    name="xem_ngay_nghi",
     description="Xem ngày đã nghỉ",
     guild_ids=DISCORD_SERVER_ID,
     options=[
@@ -228,7 +225,10 @@ async def xin_nghi_nhieu_ngay(ctx: SlashContext, from_part_of_day: str, from_dat
         )
     ]
 )
-async def list_ngay_da_nghi(ctx: SlashContext, month: str):
+async def xem_ngay_da_nghi(ctx: SlashContext, month: str):
+    if(ctx.channel.id != ANNOUNCEMENTS_ID):
+        await ctx.send("Sang channel announcements để xin nghỉ")
+        return
     await ctx.send("{} đã xem số buổi nghỉ trong tháng {}".format(ctx.author.name, month))
     wks = sh.worksheet_by_title(
         "{}/{}".format(month, datetime.now().year))
@@ -255,7 +255,7 @@ async def list_ngay_da_nghi(ctx: SlashContext, month: str):
 
 
 @slash.slash(
-    name="list_ngay_nghi_admin",
+    name="xem_ngay_nghi_admin",
     description="Xem ngày đã nghỉ dành cho admin",
     guild_ids=DISCORD_SERVER_ID,
     options=[
@@ -273,7 +273,13 @@ async def list_ngay_da_nghi(ctx: SlashContext, month: str):
         )
     ]
 )
-async def list_ngay_nghi_admin(ctx: SlashContext, user_id, month: str):
+async def xem_ngay_nghi_admin(ctx: SlashContext, user_id, month: str):
+    if(ctx.channel.id != ANNOUNCEMENTS_ID):
+        await ctx.send("Sang channel announcements để xin nghỉ")
+        return
+    if(is_admin(ctx) == False):
+        await ctx.send("Admin mới dùng được tính năng này thoai!!!!")
+        return
     try:
         user = await client.fetch_user(user_id)
     except ValueError:
@@ -316,7 +322,7 @@ async def list_ngay_nghi_admin(ctx: SlashContext, user_id, month: str):
         ),
         create_option(
             name="date",
-            description="ngày/tháng",
+            description="dd/mm",
             option_type=3,
             required=True,
         )
@@ -355,54 +361,54 @@ async def xoa_ngay_nghi_admin(ctx: SlashContext, user_id, date):
         await ctx.send("Lỗi! Hãy thử lại")
 
 
-@slash.slash(
-    name="xoa_ngay_nghi",
-    description="Chỉnh sửa ngày nghỉ dành cho user",
-    guild_ids=DISCORD_SERVER_ID,
-    options=[
-        create_option(
-            name="date",
-            description="ngày/tháng",
-            option_type=3,
-            required=True,
-        )
-    ]
-)
-async def xoa_ngay_nghi(ctx: SlashContext, date):
-    if(ctx.channel.id != ANNOUNCEMENTS_ID):
-        await ctx.send("Sang channel announcements để xin nghỉ")
-        return
-    current_date = datetime.now()
-    current_year = current_date.year
+# @slash.slash(
+#     name="xoa_ngay_nghi",
+#     description="Chỉnh sửa ngày nghỉ dành cho user",
+#     guild_ids=DISCORD_SERVER_ID,
+#     options=[
+#         create_option(
+#             name="date",
+#             description="ngày/tháng",
+#             option_type=3,
+#             required=True,
+#         )
+#     ]
+# )
+# async def xoa_ngay_nghi(ctx: SlashContext, date):
+#     if(ctx.channel.id != ANNOUNCEMENTS_ID):
+#         await ctx.send("Sang channel announcements để xin nghỉ")
+#         return
+#     current_date = datetime.now()
+#     current_year = current_date.year
 
-    try:
-        input_date = datetime.strptime(date, '%d/%m')
-        if(current_date.month == 12 and input_date.month == 1):
-            current_year += 1
-        input_date = input_date.replace(year=current_year)
-    except ValueError:
-        await ctx.send("Lỗi nhập ngày tháng")
-        return
+#     try:
+#         input_date = datetime.strptime(date, '%d/%m')
+#         if(current_date.month == 12 and input_date.month == 1):
+#             current_year += 1
+#         input_date = input_date.replace(year=current_year)
+#     except ValueError:
+#         await ctx.send("Lỗi nhập ngày tháng")
+#         return
 
-    if((current_date - input_date).days > 2):
-        await ctx.send("User không được sửa ngày đã xin phép quá 2 ngày, liên hệ admin để xóa!")
-        return
+#     if((current_date - input_date).days > 2):
+#         await ctx.send("User không được sửa ngày đã xin phép quá 2 ngày, liên hệ admin để xóa!")
+#         return
 
-    wks = sh.worksheet_by_title(
-        "{}/{}".format(input_date.month, current_year))
-    row = wks.find("{}".format(ctx.author.id))[0].row
-    col = wks.find("{}/{}/{}".format(input_date.month,
-                                     input_date.day, input_date.year))[0].col
+#     wks = sh.worksheet_by_title(
+#         "{}/{}".format(input_date.month, current_year))
+#     row = wks.find("{}".format(ctx.author.id))[0].row
+#     col = wks.find("{}/{}/{}".format(input_date.month,
+#                                      input_date.day, input_date.year))[0].col
 
-    if(wks.get_value((row, col)) == ""):
-        await ctx.send("{} chưa xin nghỉ vào ngày {}".format(ctx.author.name, input_date.strftime('%d/%m')))
-        return
+#     if(wks.get_value((row, col)) == ""):
+#         await ctx.send("{} chưa xin nghỉ vào ngày {}".format(ctx.author.name, input_date.strftime('%d/%m')))
+#         return
 
-    try:
-        await ctx.send("user {} đã xóa ngày nghỉ vào ngày {}".format(ctx.author.name, input_date.strftime('%d/%m')))
-        wks.update_value((row, col), "")
-    except ValueError:
-        await ctx.send("Lỗi! Hãy thử lại")
+#     try:
+#         await ctx.send("user {} đã xóa ngày nghỉ vào ngày {}".format(ctx.author.name, input_date.strftime('%d/%m')))
+#         wks.update_value((row, col), "")
+#     except ValueError:
+#         await ctx.send("Lỗi! Hãy thử lại")
 
 
 def is_admin(ctx):
