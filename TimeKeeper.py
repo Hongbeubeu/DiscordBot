@@ -427,7 +427,8 @@ def on_leave_in_month(ctx, from_part_of_day, from_date, to_part_of_day, to_date)
     value = "nghỉ"
     if(from_part_of_day == "chiều"):
         value += " 1/2"
-    wks.update_value((row, col), value)
+    if(from_date.weekday() != 6):
+        wks.update_value((row, col), value)
     count_day = (to_date - from_date).days
     if(count_day > 1):
         for i in range(1, count_day):
@@ -437,11 +438,12 @@ def on_leave_in_month(ctx, from_part_of_day, from_date, to_part_of_day, to_date)
             col += 1
             value = "nghỉ"
             wks.update_value((row, col), value)
-    col += 1
-    value = "nghỉ"
-    if(to_part_of_day == "sáng"):
-        value += " 1/2"
-    wks.update_value((row, col), value)
+    if(to_date.weekday() != 6):
+        col += 1
+        value = "nghỉ"
+        if(to_part_of_day == "sáng"):
+            value += " 1/2"
+        wks.update_value((row, col), value)
 
 
 def on_leave_multi_month(ctx, from_part_of_day, from_date, to_part_of_day, to_date):
@@ -453,7 +455,8 @@ def on_leave_multi_month(ctx, from_part_of_day, from_date, to_part_of_day, to_da
     value = "nghỉ"
     if(from_part_of_day == "chiều"):
         value += " 1/2"
-    wks.update_value((row, col), value)
+    if(from_date.weekday() != 6):
+        wks.update_value((row, col), value)
     count_day = (to_date - from_date).days
     if(count_day > 1):
         for i in range(1, count_day):
@@ -467,15 +470,16 @@ def on_leave_multi_month(ctx, from_part_of_day, from_date, to_part_of_day, to_da
                 "{}/{}/{}".format(check_date.month, check_date.day, check_date.year))[0].col
             value = "nghỉ"
             wks.update_value((row, col), value)
-    wks = sh.worksheet_by_title(
-        "{}/{}".format(to_date.month, to_date.year))
-    row = wks.find("{}".format(ctx.author.id))[0].row
-    col = wks.find("{}/{}/{}".format(to_date.month,
-                                     to_date.day, to_date.year))[0].col
-    value = "nghỉ"
-    if(to_part_of_day == "sáng"):
-        value += " 1/2"
-    wks.update_value((row, col), value)
+    if(to_date.weekday() != 6):
+        wks = sh.worksheet_by_title(
+            "{}/{}".format(to_date.month, to_date.year))
+        row = wks.find("{}".format(ctx.author.id))[0].row
+        col = wks.find("{}/{}/{}".format(to_date.month,
+                                         to_date.day, to_date.year))[0].col
+        value = "nghỉ"
+        if(to_part_of_day == "sáng"):
+            value += " 1/2"
+        wks.update_value((row, col), value)
 
 
 client.run(DISCORD_BOT_KEY)
