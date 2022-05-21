@@ -5,10 +5,10 @@ from discord_slash.utils.manage_commands import create_choice, create_option
 import pygsheets
 from datetime import datetime, timedelta
 
-SHEET_KEY = "1Inz2N5Oy5wxoBK0NI173qfPeQwAU2OtcORR5lf67uOg"
-DISCORD_BOT_KEY = "OTY0ODEwNDEzNTk2MzY0ODIw.YlqDtw.2Bi5kCkksFno5fY9vfMXdtIgFyg"
-ANNOUNCEMENTS_ID = 964809316370620416
-DISCORD_SERVER_ID = [964747347802345493]
+SHEET_KEY = "1z_bJQu-allIyI3vuip0tbkdGB8Js3MNpT5qUJtKJFmE"
+DISCORD_BOT_KEY = "Nzk4MTYxMzA5ODA3ODA0NDI2.G4ek7H.nGbT57VjDposbu14Wi6rTmhTSG53U93CVjlgos"
+ANNOUNCEMENTS_ID = 977484371827257374
+DISCORD_SERVER_ID = [685141852328165426]
 WEEK_DAY = ["thứ hai", "thứ ba", "thứ tư",
             "thứ năm", "thứ sáu", "thứ bảy", "chủ nhật"]
 
@@ -63,7 +63,7 @@ slash = SlashCommand(client, sync_commands=True)
 )
 async def xin_nghi(ctx: SlashContext, part_of_day: str, date: str, reason: str):
     if(ctx.channel.id != ANNOUNCEMENTS_ID):
-        await ctx.send("Sang channel announcements để xin nghỉ")
+        await ctx.send("Sang channel xin-nghi để xin nghỉ")
         return
     current_date = datetime.now()
     current_year = current_date.year
@@ -169,7 +169,7 @@ async def xin_nghi(ctx: SlashContext, part_of_day: str, date: str, reason: str):
 )
 async def xin_nghi_nhieu_ngay(ctx: SlashContext, from_part_of_day: str, from_date: str, to_part_of_day: str, to_date: str, reason):
     if(ctx.channel.id != ANNOUNCEMENTS_ID):
-        await ctx.send("Sang channel announcements để xin nghỉ")
+        await ctx.send("Sang channel xin-nghi để xin nghỉ")
         return
     current_date = datetime.now()
     current_year = current_date.year
@@ -227,9 +227,9 @@ async def xin_nghi_nhieu_ngay(ctx: SlashContext, from_part_of_day: str, from_dat
 )
 async def xem_ngay_da_nghi(ctx: SlashContext, month: str):
     if(ctx.channel.id != ANNOUNCEMENTS_ID):
-        await ctx.send("Sang channel announcements để xin nghỉ")
+        await ctx.send("Sang channel xin-nghi để xin nghỉ")
         return
-    await ctx.send("{} đã xem số buổi nghỉ trong tháng {}".format(ctx.author.name, month))
+    await ctx.send("{} đã xem số buổi nghỉ trong tháng {}".format(ctx.author.display_name, month))
     wks = sh.worksheet_by_title(
         "{}/{}".format(month, datetime.now().year))
     first_day_of_month = datetime.now()
@@ -242,7 +242,7 @@ async def xem_ngay_da_nghi(ctx: SlashContext, month: str):
     data = data[3:]
     i = 0
     count = 0
-    res = "Tháng {} {} đã nghỉ những ngày: \n".format(month, ctx.author.name)
+    res = "Tháng {} {} đã nghỉ những ngày: \n".format(month, ctx.author.display_name)
     for item in data:
         if(item != ""):
             count += 1
@@ -250,7 +250,7 @@ async def xem_ngay_da_nghi(ctx: SlashContext, month: str):
         i += 1
         current_date = first_day_of_month + timedelta(i)
     if(count == 0):
-        res = "Tháng {} {} không nghỉ ngày nào".format(month, ctx.author.name)
+        res = "Tháng {} {} không nghỉ ngày nào".format(month, ctx.author.display_name)
     await ctx.author.send(res)
 
 
@@ -275,7 +275,7 @@ async def xem_ngay_da_nghi(ctx: SlashContext, month: str):
 )
 async def xem_ngay_nghi_admin(ctx: SlashContext, user_id, month: str):
     if(ctx.channel.id != ANNOUNCEMENTS_ID):
-        await ctx.send("Sang channel announcements để xin nghỉ")
+        await ctx.send("Sang channel xin-nghi để xin nghỉ")
         return
     if(is_admin(ctx) == False):
         await ctx.send("Admin mới dùng được tính năng này thoai!!!!")
@@ -285,7 +285,7 @@ async def xem_ngay_nghi_admin(ctx: SlashContext, user_id, month: str):
     except ValueError:
         await ctx.send("Lỗi không tìm thấy user!")
         return
-    await ctx.send("admin: {} đã xem số buổi nghỉ trong tháng {} của user: {}".format(ctx.author.name, month, user.name))
+    await ctx.send("admin: {} đã xem số buổi nghỉ trong tháng {} của user: {}".format(ctx.author.display_name, month, user.name))
     wks = sh.worksheet_by_title(
         "{}/{}".format(month, datetime.now().year))
     first_day_of_month = datetime.now()
@@ -330,7 +330,7 @@ async def xem_ngay_nghi_admin(ctx: SlashContext, user_id, month: str):
 )
 async def xoa_ngay_nghi_admin(ctx: SlashContext, user_id, date):
     if(ctx.channel.id != ANNOUNCEMENTS_ID):
-        await ctx.send("Sang channel announcements để xin nghỉ")
+        await ctx.send("Sang channel xin-nghi để xin nghỉ")
         return
     if(is_admin(ctx) == False):
         await ctx.send("Admin mới dùng được tính năng này thoai!!!!")
@@ -355,7 +355,7 @@ async def xoa_ngay_nghi_admin(ctx: SlashContext, user_id, date):
 
     try:
         user = await client.fetch_user(user_id)
-        await ctx.send("admin {} đã xóa ngày nghỉ của user {} vào ngày {}".format(ctx.author.name, user.name, input_date.strftime('%d/%m')))
+        await ctx.send("admin {} đã xóa ngày nghỉ của user {} vào ngày {}".format(ctx.author.display_name, user.name, input_date.strftime('%d/%m')))
         wks.update_value((row, col), "")
     except ValueError:
         await ctx.send("Lỗi! Hãy thử lại")
